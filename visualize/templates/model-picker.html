@@ -1,0 +1,36 @@
+<!doctype html>
+<head>
+    <title>Lemma Gen Visualizer</title>
+</head>
+<style>
+.info {
+    font-size: 10pt;
+}
+.model {
+    font-size: 14pt;
+}
+
+</style>
+
+<body>
+
+    <div>
+        Pick model:
+    </div>
+
+    <ul>
+        {% for model in models %}
+        <li>
+            <a href="/model/{{model["name"]}}/example/0/epoch/0">
+                {{model["name"]}}
+            </a>
+            : 
+            <span class="info">{{model["info"]}}</span>
+        </li>
+        {% endfor %}
+    </ul>
+
+
+</body>
+
+

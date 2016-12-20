@@ -1,0 +1,312 @@
+<!doctype html>
+<head>
+    <title>Lemma Gen Visualizer</title>
+</head>
+
+<style>
+
+#input-wrapper {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+
+#output-wrapper {
+    margin-left: 25px;
+    padding: 25px;
+    float: left;
+}
+
+#beam-output-wrapper {
+    width: 100%;
+    padding: 25px;
+    float:left;
+    border: 1px solid black;
+}
+
+#greedy-output-wrapper {
+    width: 100%;
+    padding: 25px;
+    float:left;
+    border: 1px solid black;
+
+}
+
+.greedy-output-token {
+    float: left;
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    padding: 0px 0px 0px 0px;
+    background-color: gray;
+    border: 2px solid white;
+}
+#encoder-attention {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+
+#greedy-output {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+#greedy-topk {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+
+#input {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+
+#output {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+.input-token {
+    float: left;
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    margin: 0px 15px 0px 15px;
+}
+
+.gold-output-token {
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    padding: 0px 0px 0px 0px;
+    background-color: blue;
+}
+
+.topk-elem {
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    padding: 0px 0px 0px 0px;
+}
+
+
+.output-step {
+    float: left;
+    min-width: 35px;
+    height: auto;
+    margin: 0px 10px 0px 10px;
+    border: solid white 2px;
+}
+
+</style>
+
+<body>
+<div id="outer-wrapper">
+<div id="example-wrapper">
+    <div id="example-input"> Input: {% for token in input %} 
+        {{ token }}
+    {% endfor %}
+    </div>
+    <div id="example-output"> Output: {% for token in gold_output %}
+        {{ token }}
+    {% endfor %}
+    </div>
+</div>
+
+<div id="greedy-output-wrapper">
+  
+    <div style="width: 100%; float:left;">
+        <div> Greedy Decoder </div>
+        <div id="greedy-output"> </div>
+    </div>
+    <div style="width: 100%; float:left;">
+        <div> Top Greedy Predictions </div>
+        <div id="greedy-topk"> </div>
+    </div>
+</div>
+
+<div id="beam-output-wrapper">
+    <div> Beam Decoder </div>
+    <div id="beam-output"> </div>
+
+</div>
+
+<div id="controlls">
+    <div>
+    {% for epoch in all_epochs %}
+    <a href="/model/{{current_model}}/example/{{current_example}}/epoch/{{epoch}}">{{epoch}}</a>
+    {% endfor %}
+    </div>
+    <div>
+    {% for ex in all_examples %}
+    <a href="/model/{{current_model}}/example/{{ex}}/epoch/{{current_epoch}}">{{ex}}</a>
+    {% endfor %}
+    </div>
+</div>
+
+</div>
+<script>
+
+    function heatMapColor(value) {
+        var h = (1.0 - value) * 240;
+        return "hsla(" + h + ", 100%, 50%, .5)";
+    }
+
+    var goldOutput = {{gold_output_json|safe}};
+    var greedyDecoderPredictions = {{greedy_decoder_output|safe}};
+    var greedyDecoderSize = greedyDecoderPredictions.length;    
+    var showGreedyDecoderTopK = greedyDecoderPredictions[0].length;    
+    var beamDecoderOutput = {{beam_decoder_output|safe}};
+    var beamSize = beamDecoderOutput.length;
+
+    for (var step=0; step < greedyDecoderSize; step++) {
+        var predElem = document.createElement('div');
+        predElem.textContent = greedyDecoderPredictions[step][0]["token"];
+        predElem.setAttribute("id", "greedy-output-"+step);
+        predElem.setAttribute("class", "greedy-output-token");
+        document.getElementById("greedy-output").appendChild(predElem);
+
+    }
+    for (var step=0; step < showGreedyDecoderTopK; step++) {
+        var predElem = document.createElement('div');
+        predElem.textContent = "";
+        predElem.setAttribute("id", "greedy-topk-"+step);
+        predElem.setAttribute("class", "greedy-output-token");
+        document.getElementById("greedy-topk").appendChild(predElem);
+
+    }
+
+    for (var step=0; step < beamSize; step++) {
+        var beamElem = document.createElement('div');
+        var beamOutput = beamDecoderOutput[step]["output"];
+        var beamScore = beamDecoderOutput[step]["score"];
+        beamElem.textContent = beamScore.toFixed(5) 
+            + "\xa0 \xa0 \xa0 \xa0 \xa0 \xa0 "+ beamOutput;
+       
+        beamElem.style.background = heatMapColor(beamScore); 
+        document.getElementById("beam-output").appendChild(beamElem);
+
+    }
+
+
+//    var attention = {{attention|safe}};
+//    var topk = {{topk|safe}};
+    var step = -1;
+    var maxSteps = greedyDecoderSize;
+
+
+    function updateDisplayNext() {
+        step++;
+        
+        if (step == maxSteps)
+            step = 0;
+
+        setDisplay(step);  
+        
+        
+    };
+
+    
+//    for (var i=0; i < maxSteps; i++) {
+//        
+//        var topk_i = topk[i];
+//        var outputToken = document.getElementById("topk-output-token-"+i);
+//        
+//        for (var k=0; k < topk_i.length; k++) {
+//            var topkElem = document.createElement('div');
+//            topkElem.className = "topk-elem";
+//            topkElem.textContent = topk_i[k]["token"];
+//            topkElem.style.background = heatMapColor(topk_i[k]["likelihood"]);
+//            outputToken.appendChild(topkElem);
+//        }
+
+//    }
+//
+    function setDisplay(step) {
+
+
+        
+
+
+
+        for (var i=0; i < maxSteps; i++) {
+            var predElem = document.getElementById("greedy-output-"+i);
+            if (i <= step) { 
+                var predToken = greedyDecoderPredictions[i][0]["token"];
+                predElem.textContent = predToken;
+                if (predToken == goldOutput[i]) {
+                    predElem.style.background = "rgba(0,255,0,.75)";
+                } else {
+                    predElem.style.background = "red";
+                }
+            } else {
+                predElem.textContent = "";
+                predElem.style.background = "gray";
+            }
+
+        }
+
+        for (var i=0; i < showGreedyDecoderTopK; i++) {
+            var predElem = document.getElementById("greedy-topk-"+i);
+            var predToken = greedyDecoderPredictions[step][i]["token"];
+            var predProb = greedyDecoderPredictions[step][i]["probability"];
+            predElem.textContent = predToken;
+            predElem.style.background = heatMapColor(predProb);
+
+        }
+
+//        var attention_t = attention[step];
+//        for (var i=0; i < attention_t.length; i++) {
+//            var inputToken = document.getElementById("input-token-" + i);
+//            inputToken.style.background = heatMapColor(attention_t[i]);
+//       //     inputToken.textContent = attention_t[i].toFixed(3);
+//        }
+//
+//        for (var i=0; i < maxSteps; i++) {
+//            var outputStep = document.getElementById("output-step-" + i);
+//            var goldOutputStep = document.getElementById(
+//                "gold-output-token-"+i);
+//            if (i == step) {
+//                outputStep.style.border = "solid black 2px";
+//                goldOutputStep.style.background = 'rgba(55,255,155,.5)';
+//            } else {
+//                outputStep.style.border = "solid white 2px";
+//                goldOutputStep.style.background = 'white';
+//            }
+//        } 
+    };
+//
+//    //var autorunControl = document.getElementById("autorun");
+//
+    var autorun;
+
+    function toggleInterval() {
+        if (autorun != null) {
+            clearInterval(autorun);
+            autorun = null;
+            //autorunControl.textContent = "run";
+        } else {
+            autorun = setInterval("updateDisplayNext()", 500);
+            //autorunControl.textContent = "pause";
+        }
+    }
+
+ //   autorunControl.onclick = toggleInterval;
+    autorun = setInterval("updateDisplayNext()", 500);
+
+
+</script>
+
+
+</body>

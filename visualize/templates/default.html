@@ -1,0 +1,326 @@
+<!doctype html>
+<head>
+    <title>Lemma Gen Visualizer</title>
+</head>
+
+<style>
+
+body {
+    overflow-x: hidden;
+    max-width: 100%; 
+    width: 100%;
+    margin: 0px;
+    padding: 0px;
+}
+
+#outer-wrapper {
+    width: 95%;
+    margin: 0px;
+    padding: 0px;
+}
+
+#input-wrapper {
+    width: 100%;
+    padding: 25px;
+    float: left;
+}
+
+#output-wrapper {
+    margin-left: 25px;
+    padding: 0px;
+    float: left;
+    width: 100%;
+}
+
+#beam-output-wrapper {
+    width: 100%;
+    padding: 0px;
+    float:left;
+    border: 1px solid black;
+}
+
+#greedy-output-wrapper {
+    width: 100%;
+    padding: 0px;
+    float:left;
+    border: 1px solid black;
+
+}
+
+.greedy-output-token {
+    float: left;
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    padding: 0px 0px 0px 0px;
+    background-color: gray;
+    border: 2px solid white;
+}
+#encoder-attention {
+    width: 100%;
+    padding: 25px;
+    float: left;
+}
+
+#greedy-output {
+    width: 100%;
+    padding: 25px;
+    float: left;
+}
+#greedy-topk {
+    width: auto;
+    padding: 25px;
+    float: left;
+}
+
+#input {
+    width: 100%;
+    padding: 25px;
+    float: left;
+}
+
+#output {
+    width: 100%;
+    padding: 25px;
+    float: left;
+}
+.input-token {
+    float: left;
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    margin: 0px 15px 0px 15px;
+}
+
+.gold-output-token {
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    padding: 0px 0px 0px 0px;
+    background-color: blue;
+}
+
+.topk-elem {
+    min-width: 35px;
+    min-height: 35px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 35px;
+    padding: 0px 0px 0px 0px;
+}
+
+
+.output-step {
+    float: left;
+    min-width: 35px;
+    height: auto;
+    margin: 0px 10px 0px 10px;
+    border: solid white 2px;
+}
+
+</style>
+
+<body>
+<div id="outer-wrapper">
+<div id="example-wrapper">
+    <div id="example-input"> Input: {% for token in input %} 
+        {{ token }}
+    {% endfor %}
+    </div>
+    <div id="example-output"> Output: {% for token in gold_output %}
+        {{ token }}
+    {% endfor %}
+    </div>
+</div>
+
+<div id="greedy-output-wrapper">
+     <div style="width: 100%; float:left;">
+        <div style="width: 100%"> Encoder Attention </div>
+        <div style="width: 100%" id="encoder-attention">
+            {% for token in input %}
+                <div id="attention-token-{{loop.index0}}" class="greedy-output-token"> {{token}}</div>
+            {% endfor %}
+        </div>
+    </div>
+  
+    <div style="width: 100%; float:left;">
+        <div style="width: 100%"> Greedy Decoder </div>
+        <div style="width: 100%" id="greedy-output"> </div>
+    </div>
+    <div style="width: 100%; float:left;">
+        <div style="width: 100%"> Top Greedy Predictions </div>
+        <div style="width: 100%" id="greedy-topk"> </div>
+    </div>
+</div>
+
+<div id="beam-output-wrapper">
+    <div style="width: 100%"> Beam Decoder </div>
+    <div style="width: 100%" id="beam-output"> </div>
+
+</div>
+
+<div  style="width: 100%" id="controlls">
+    <div id="playback">
+        <a id="autorun" href="javascript: void(0)"> pause </a>
+        <a id="prev-step-button" href="javascript: void(0)"> &larr; </a>
+        <a id="next-step-button" href="javascript: void(0)"> &rarr; </a>
+    </div>
+    <div>
+    {% for epoch in all_epochs %}
+    <a href="/model/{{current_model}}/example/{{current_example}}/epoch/{{epoch}}">{{epoch}}</a>
+    {% endfor %}
+    </div>
+    <div>
+    {% for ex in all_examples %}
+    <a href="/model/{{current_model}}/example/{{ex}}/epoch/{{current_epoch}}">{{ex}}</a>
+    {% endfor %}
+    </div>
+</div>
+
+</div>
+<script>
+
+    function heatMapColor(value) {
+        var h = (1.0 - value) * 240;
+        return "hsla(" + h + ", 100%, 50%, .5)";
+    }
+
+    var goldOutput = {{gold_output_json|safe}};
+    var greedyDecoderPredictions = {{greedy_decoder_output|safe}};
+    var greedyDecoderSize = greedyDecoderPredictions.length;    
+    var showGreedyDecoderTopK = greedyDecoderPredictions[0].length;    
+    var beamDecoderOutput = {{beam_decoder_output|safe}};
+    var beamSize = beamDecoderOutput.length;
+
+    var attention = {{attention|safe}};
+
+
+    for (var step=0; step < greedyDecoderSize; step++) {
+        var predElem = document.createElement('div');
+        predElem.textContent = greedyDecoderPredictions[step][0]["token"];
+        predElem.setAttribute("id", "greedy-output-"+step);
+        predElem.setAttribute("class", "greedy-output-token");
+        document.getElementById("greedy-output").appendChild(predElem);
+
+    }
+    for (var step=0; step < showGreedyDecoderTopK; step++) {
+        var predElem = document.createElement('div');
+        predElem.textContent = "";
+        predElem.setAttribute("id", "greedy-topk-"+step);
+        predElem.setAttribute("class", "greedy-output-token");
+        document.getElementById("greedy-topk").appendChild(predElem);
+
+    }
+
+    for (var step=0; step < beamSize; step++) {
+        var beamElem = document.createElement('div');
+        var beamOutput = beamDecoderOutput[step]["output"];
+        var beamScore = beamDecoderOutput[step]["score"];
+        beamElem.textContent = beamScore.toFixed(5) 
+            + "\xa0 \xa0 \xa0 \xa0 \xa0 \xa0 "+ beamOutput;
+       
+        beamElem.style.background = heatMapColor(beamScore); 
+        document.getElementById("beam-output").appendChild(beamElem);
+
+    }
+
+    var step = -1;
+    var maxSteps = greedyDecoderSize;
+
+
+    function updateDisplayNext() {
+        step++;
+        
+        if (step >= maxSteps)
+            step = 0;
+
+        setDisplay(step);  
+    };
+
+    function updateDisplayPrev() {
+        step--;
+        
+        if (step < 0)
+            step = maxSteps - 1;
+
+        setDisplay(step);  
+    };
+
+    function setDisplay(step) {
+
+
+        for (var i=0; i < maxSteps; i++) {
+            var predElem = document.getElementById("greedy-output-"+i);
+            if (i <= step) { 
+                var predToken = greedyDecoderPredictions[i][0]["token"];
+                predElem.textContent = predToken;
+                if (predToken == goldOutput[i]) {
+                    predElem.style.background = "rgba(0,255,0,.75)";
+                } else {
+                    predElem.style.background = "red";
+                }
+            } else {
+                predElem.textContent = "";
+                predElem.style.background = "gray";
+            }
+
+            for (var a=0; a < attention[step].length; a++) {
+                
+                var attend = document.getElementById("attention-token-"+a);
+                attend.style.background = heatMapColor(attention[step][a]);
+
+            }
+        
+        }
+
+        for (var i=0; i < showGreedyDecoderTopK; i++) {
+            var predElem = document.getElementById("greedy-topk-"+i);
+            var predToken = greedyDecoderPredictions[step][i]["token"];
+            var predProb = greedyDecoderPredictions[step][i]["probability"];
+            predElem.textContent = predToken;
+            predElem.style.background = heatMapColor(predProb);
+
+        }
+
+    };
+
+    var autorunControl = document.getElementById("autorun");
+    var autorun;
+
+    function toggleInterval() {
+        if (autorun != null) {
+            clearInterval(autorun);
+            autorun = null;
+            autorunControl.textContent = "run";
+        } else {
+            autorun = setInterval("updateDisplayNext()", 500);
+            autorunControl.textContent = "pause";
+        }
+    }
+
+    autorunControl.onclick = toggleInterval;
+    autorun = setInterval("updateDisplayNext()", 500);
+
+    document.getElementById("prev-step-button").onclick = updateDisplayPrev;
+    document.getElementById("next-step-button").onclick = updateDisplayNext;
+
+    document.onkeydown = function(key){ 
+        if (key.keyCode == 32) {
+           autorunControl.click(); 
+        } else if (key.keyCode == 37) {
+            updateDisplayPrev();   
+        } else if (key.keyCode == 39) {
+            updateDisplayNext();
+        }
+    }
+
+</script>
+
+
+</body>
