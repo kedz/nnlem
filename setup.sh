@@ -23,6 +23,8 @@ else
     echo "Skipping gpu libs..."
 fi
 
+luarocks install rnn
+
 echo ". $BASEPATH/torch/install/bin/torch-activate" > $BASEPATH/env.sh
 echo "export LUA_PATH=\"$LUA_PATH;$BASEPATH/lua/?.lua\"" >> $BASEPATH/env.sh
 echo "export OMP_NUM_THREADS=1" >> $BASEPATH/env.sh
