@@ -1,15 +1,35 @@
-pushd `dirname $0` > /dev/null
-SCRIPTPATH=`pwd`
-popd > /dev/null
+BASEPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "Setting up data and experiments in $SCRIPTPATH ..."
+echo "Running setup script from $BASEPATH ..."
+sleep 3
 
-DATAPATH=$SCRIPTPATH/data
+git clone https://github.com/torch/distro.git $BASEPATH/torch --recursive
+cd $BASEPATH/torch
+bash install.sh -s
 
-### download data ###
+. $BASEPATH/torch/install/bin/torch-activate
+
+luarocks install torch
+luarocks install nn
+luarocks install dpnn
+luarocks install torchx
+
+if [[ $(which nvidia-smi) ]]; then
+    echo "Installing gpu libs..."
+    luarocks install cutorch
+    luarocks install cunn
+    luarocks install cunnx
+else
+    echo "Skipping gpu libs..."
+fi
+
+echo "Setting up data and experiments in $BASEPATH ..."
+
+DATAPATH=$BASEPATH/data
+
+ ### download data ###
 
 mkdir -p $DATAPATH
-
 cd $DATAPATH
 
 if [ ! -f lemmatization-en.txt ]; then
@@ -19,7 +39,7 @@ if [ ! -f lemmatization-en.txt ]; then
     unzip lemmatization-en.zip
 fi
 
-cd $SCRIPTPATH
+cd $BASEPATH
 
 python python/make-dataset.py --path $DATAPATH/lemmatization-en.txt \
     --seed 293492323491 --dest $DATAPATH/
