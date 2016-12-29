@@ -3,5 +3,7 @@ Neural encoder/decoder experiments for predicting a word's lemma given an inflec
 
 
 bash setup.sh
+
 . env.sh
+
 th example.lua
