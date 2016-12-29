@@ -2,6 +2,7 @@
 local opt = lapp [[
 Evaluate a stacked LSTM encoder/decoder.
 Options:
+  --results     (string)        Path to write results.
   --model       (string)        Path to model/vocab directory.
   --vocab       (string)        Path to vocab file.
   --train-data  (default '')    Training data path.
@@ -15,8 +16,10 @@ Options:
 ]]
 
 require 'lemma-data'
+local eval = require('eval')
 require 'stacked-lstm'
 require 'attention-lstm'
+require 'attention-bi-lstm'
 
 local useGPU = false
 if opt.gpu > 0 then useGPU = true end
@@ -95,6 +98,20 @@ else
     end
 end
 
+local results = assert(io.open(opt.results, "w"))
+header = "epoch"
+if encInTrn then 
+    header = header .. "\ttrain perpl\ttrain acc"
+end
+if encInDev then 
+    header = header .. "\tdev perpl\tdev acc"
+end
+if encInTst then 
+    header = header .. "\ttest perpl\ttest acc"
+end
+results:write(header .. "\n")
+
+
 print("Evaluating epochs " .. opt.start_epoch .. " ... " .. opt.stop_epoch)
 
 for epoch=opt.start_epoch,opt.stop_epoch do
@@ -106,47 +123,93 @@ for epoch=opt.start_epoch,opt.stop_epoch do
     local trainLoss = 0
     local trainCorrect = 0
     if encInTrn then
+        print("Running on training split.")
         for batch in data:batchIter(encInTrn, decInTrn, decOutTrn,
                                     opt.batch_size) do
             xlua.progress(batch.t, batch.maxSteps)
             local bEncInTrn = batch["encIn"]
             local bDecInTrn = batch["decIn"]
             local bDecOutTrn = batch["decOut"]
-            local loss, correct = model:lossAndCoarseAcc(
-                bEncInTrn, bDecInTrn, bDecOutTrn, false)
-            trainLoss = trainLoss + loss
-            trainCorrect = trainCorrect + correct
+            local bLossTrn = model:loss(bEncInTrn, bDecInTrn, bDecOutTrn) 
+            local bPredOutputTrn = model:greedyDecode(bEncInTrn, false, true)
+            local bAccTrn = eval.coarseAccuracy(bPredOutputTrn, bDecOutTrn)
+            local bNumCorrectTrn = bEncInTrn:size(1) * bAccTrn
+
+            trainLoss = trainLoss + bLossTrn
+            trainCorrect = trainCorrect + bNumCorrectTrn
         end
     end
 
     local devLoss = 0
     local devCorrect = 0
     if encInDev then
+        print("Running on development split.")
         for batch in data:batchIter(encInDev, decInDev, decOutDev,
                                     opt.batch_size) do
             xlua.progress(batch.t, batch.maxSteps)
             local bEncInDev = batch["encIn"]
             local bDecInDev = batch["decIn"]
             local bDecOutDev = batch["decOut"]
-            local loss, correct = model:lossAndCoarseAcc(
-                bEncInDev, bDecInDev, bDecOutDev, false)
-            devLoss = devLoss + loss
-            devCorrect = devCorrect + correct
+            local bLossDev = model:loss(bEncInDev, bDecInDev, bDecOutDev) 
+            local bPredOutputDev = model:greedyDecode(bEncInDev, false, true)
+            local bAccDev = eval.coarseAccuracy(bPredOutputDev, bDecOutDev)
+            local bNumCorrectDev = bEncInDev:size(1) * bAccDev
+
+            devLoss = devLoss + bLossDev
+            devCorrect = devCorrect + bNumCorrectDev
         end
     end
+
+    local testLoss = 0
+    local testCorrect = 0
+    if encInTst then
+        print("Running on test split.")
+        for batch in data:batchIter(encInTst, decInTst, decOutTst,
+                                    opt.batch_size) do
+            xlua.progress(batch.t, batch.maxSteps)
+            local bEncInTst = batch["encIn"]
+            local bDecInTst = batch["decIn"]
+            local bDecOutTst = batch["decOut"]
+            local bLossTst = model:loss(bEncInTst, bDecInTst, bDecOutTst) 
+            local bPredOutputTst = model:greedyDecode(bEncInTst, false, true)
+            local bAccTst = eval.coarseAccuracy(bPredOutputTst, bDecOutTst)
+            local bNumCorrectTst = bEncInTst:size(1) * bAccTst
+
+            testLoss = testLoss + bLossTst
+            testCorrect = testCorrect + bNumCorrectTst
+        end
+    end
+
+
+    local resultString = '' .. epoch
 
     if encInTrn then
         trainPerpl = torch.exp(trainLoss / nnzTrain)
         trainAcc = trainCorrect / decInTrn:size(1)
-        print(epoch, "  Training perplexity = " .. trainPerpl)
-        print(epoch, "    Training accuracy = " .. trainAcc)
+        print(epoch, "   Training perplexity = " .. trainPerpl)
+        print(epoch, "     Training accuracy = " .. trainAcc)
+        resultString = resultString .. "\t" .. trainPerpl .. "\t" .. trainAcc
     end
     if encInDev then
         devPerpl = torch.exp(devLoss / nnzDev)
         devAcc = devCorrect / decInDev:size(1)
         print(epoch, "Development perplexity = " .. devPerpl)
         print(epoch, "  Development accuracy = " .. devAcc)
+        resultString = resultString .. "\t" .. devPerpl .. "\t" .. devAcc
+    end
+
+    if encInTst then
+        testPerpl = torch.exp(testLoss / nnzTst)
+        testAcc = testCorrect / decInTst:size(1)
+        print(epoch, "       Test perplexity = " .. testPerpl)
+        print(epoch, "         Test accuracy = " .. testAcc)
+        resultString = resultString .. "\t" .. testPerpl .. "\t" .. testAcc
     end
 
 
+
+    results:write(resultString .. "\n")
+
 end
+
+results:close()
