@@ -14,7 +14,7 @@ function data.readVocab(path)
     return vocab, ids
 end
 
-function data.read(path, vocab, ids)
+function data.read(path, vocab, ids, showProgress)
     local vid
     if vocab == nil or ids == nil then
         vocab = {}
@@ -40,7 +40,9 @@ function data.read(path, vocab, ids)
 
     local exampleIndex = 1
     for line in io.lines(path) do
-        xlua.progress(exampleIndex, totalExamples)
+        if showProgress then
+            xlua.progress(exampleIndex, totalExamples)
+        end
         exampleIndex = exampleIndex + 1
         --if num % 100000 == 0 then
         --    print(num)
