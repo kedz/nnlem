@@ -655,7 +655,7 @@ function SLSTMModel:float()
     self.logSoftMax:float()
     self.criterion:float()
     self.tableOutput:float()
-    self.__allocateMemory()
+    self:__allocateMemory()
 end
 
 function SLSTMModel:cuda()
@@ -664,7 +664,7 @@ function SLSTMModel:cuda()
     self.logSoftMax:cuda()
     self.criterion:cuda()
     self.tableOutput:cuda()
-    self.__allocateMemory()
+    self:__allocateMemory()
 end
 
 function SLSTMModel:reset()
