@@ -13,6 +13,7 @@ Options:
   --epochs     (default 50)    Max number of training epochs.
   --seed       (default 1986)  Random seed.
   --gpu        (default 0)     Which gpu to use. Default is cpu.
+  --progress   (default true)  Show progress bar.
 ]]
 
 require 'lemma-data'
@@ -55,7 +56,8 @@ print("Reading vocab from " .. opt.vocab .. " ...")
 local vocab, ids = data.readVocab(opt.vocab)
 
 print("Reading data from " .. opt.data .. " ...")
-local _, _, encIn, decIn, decOut = data.read(opt.data, vocab, ids)
+local _, _, encIn, decIn, decOut = data.read(
+    opt.data, vocab, ids, opt.progress)
 
 -------------------------------------------------------------------------------
 ------------------------------    SETUP MODEL    ------------------------------
@@ -82,7 +84,9 @@ for epoch=1,opt.epochs do
     print("Epoch " .. epoch .. " ... ")
     local trainLoss = 0
     for batch in data:batchIter(encIn, decIn, decOut, opt.batch_size) do
-        xlua.progress(batch.t, batch.maxSteps)
+        if opt.progress then
+            xlua.progress(batch.t, batch.maxSteps)
+        end
         bEncIn = batch["encIn"]
         bDecIn = batch["decIn"]
         bDecOut = batch["decOut"]
