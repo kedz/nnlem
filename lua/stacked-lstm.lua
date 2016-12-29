@@ -526,7 +526,6 @@ function SLSTMModel:forwardConnect()
             dec.userPrevOutput, enc.output[-1])
         dec.userPrevCell = nn.rnn.recursiveCopy(
             dec.userPrevCell, enc.cell[-1])
-
     end
 end
 
@@ -543,7 +542,6 @@ function SLSTMModel:backwardConnect()
             enc.userNextGradCell, dec.userGradPrevCell)
         enc.gradPrevOutput = nn.rnn.recursiveCopy(
             enc.gradPrevOutput, dec.userGradPrevOutput)
-
     end
 end
 
