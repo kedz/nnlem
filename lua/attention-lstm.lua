@@ -500,15 +500,16 @@ end
 
 function ALSTMModel:getDecoderLSTM(layer)
 
+    local mod = self.decoder.module:get(1):get(2)
     if layer == nil then
         layers = {}
         for l=1,self.layerSize do
-            table.insert(layers, self.decoder.module:get(1 + l))
+            table.insert(layers, mod:get(1 + l))
         end
         return layers
     else
         assert(layer > 0 and layer <= self.layerSize, "Arg #1 out of range.")
-        return self.decoder.module:get(1 + layer)
+        return mod:get(1 + layer)
     end
 
 end
@@ -537,8 +538,10 @@ function ALSTMModel:forwardConnect()
     for l=1,self.layerSize do
         local enc = self:getEncoderLSTM(l)
         local dec = self:getDecoderLSTM(l)
-        dec.userPrevOutput = enc.output[-1]
-        dec.userPrevCell = enc.cell[-1]
+        dec.userPrevOutput = nn.rnn.recursiveCopy(
+            dec.userPrevOutput, enc.output[-1])
+        dec.userPrevCell = nn.rnn.recursiveCopy(
+            dec.userPrevCell, enc.cell[-1])
     end
 end
 
@@ -548,11 +551,13 @@ function ALSTMModel:backwardConnect()
 --  last encoder lstm step for each lstm layer. Call this after the backward 
 --  pass of the decoder.
 --]]
-    for l=1,self.layerSize do
+    for l=self.layerSize,1,-1 do
         local enc = self:getEncoderLSTM(l)
         local dec = self:getDecoderLSTM(l)
-        enc.gradPrevOutput = dec.userGradPrevOutput
-        enc.userNextGradCell = dec.userGradPrevCell
+        enc.userNextGradCell = nn.rnn.recursiveCopy(
+            enc.userNextGradCell, dec.userGradPrevCell)
+        enc.gradPrevOutput = nn.rnn.recursiveCopy(
+            enc.gradPrevOutput, dec.userGradPrevOutput)
     end
 end
 
@@ -691,7 +696,7 @@ function ALSTMModel:float()
     self.logSoftMax:float()
     self.criterion:float()
     self.tableOutput:float()
-    self.__allocateMemory()
+    self:__allocateMemory()
 end
 
 function ALSTMModel:cuda()
@@ -700,7 +705,7 @@ function ALSTMModel:cuda()
     self.logSoftMax:cuda()
     self.criterion:cuda()
     self.tableOutput:cuda()
-    self.__allocateMemory()
+    self:__allocateMemory()
 end
 
 function ALSTMModel:reset()
