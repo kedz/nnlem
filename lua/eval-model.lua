@@ -1,6 +1,6 @@
 -- Options
 local opt = lapp [[
-Evaluate a stacked LSTM encoder/decoder.
+Evaluate encoder/decoder model.
 Options:
   --results     (string)        Path to write results.
   --model       (string)        Path to model/vocab directory.
@@ -13,13 +13,14 @@ Options:
   --stop-epoch  (default 50)    Last epoch to evaluate (inclusive).
   --seed        (default 1986)  Random seed.
   --gpu         (default 0)     Which gpu to use. Default is cpu.
+  --progress   (default true)   Show progress bar.
 ]]
 
 require 'lemma-data'
 local eval = require('eval')
 require 'stacked-lstm'
 require 'attention-lstm'
-require 'attention-bi-lstm'
+--require 'attention-bi-lstm'
 
 local useGPU = false
 if opt.gpu > 0 then useGPU = true end
@@ -44,7 +45,8 @@ local encInTrn, decInTrn, decOutTrn
 local nnzTrain
 if string.len(opt.train_data) > 0 then
     print("Reading training data from " .. opt.train_data .. " ...")
-    _, _, encInTrn, decInTrn, decOutTrn = data.read(opt.train_data, vocab, ids)
+    _, _, encInTrn, decInTrn, decOutTrn = data.read(
+        opt.train_data, vocab, ids, opt.progress)
     nnzTrain = decInTrn:nonzero():size(1)
 end
 
@@ -52,7 +54,8 @@ local encInDev, decInDev, decOutDev
 local nnzDev
 if string.len(opt.dev_data) > 0 then
     print("Reading development data from " .. opt.dev_data .. " ...")
-    _, _, encInDev, decInDev, decOutDev = data.read(opt.dev_data, vocab, ids)
+    _, _, encInDev, decInDev, decOutDev = data.read(
+        opt.dev_data, vocab, ids, opt.progress)
     nnzDev = decInDev:nonzero():size(1)
 end
 
@@ -60,7 +63,8 @@ local encInTst, decInTst, decOutTst
 local nnzTst
 if string.len(opt.test_data) > 0 then
     print("Reading test data from " .. opt.test_data .. " ...")
-    _, _, encInTst, decInTst, decOutTst = data.read(opt.test_data, vocab, ids)
+    _, _, encInTst, decInTst, decOutTst = data.read(
+        opt.test_data, vocab, ids, opt.progress)
     nnzTst = decInTst:nonzero():size(1)
 end
 
@@ -126,7 +130,9 @@ for epoch=opt.start_epoch,opt.stop_epoch do
         print("Running on training split.")
         for batch in data:batchIter(encInTrn, decInTrn, decOutTrn,
                                     opt.batch_size) do
-            xlua.progress(batch.t, batch.maxSteps)
+            if opt.progress then
+                xlua.progress(batch.t, batch.maxSteps)
+            end
             local bEncInTrn = batch["encIn"]
             local bDecInTrn = batch["decIn"]
             local bDecOutTrn = batch["decOut"]
@@ -146,7 +152,9 @@ for epoch=opt.start_epoch,opt.stop_epoch do
         print("Running on development split.")
         for batch in data:batchIter(encInDev, decInDev, decOutDev,
                                     opt.batch_size) do
-            xlua.progress(batch.t, batch.maxSteps)
+            if opt.progress then
+                xlua.progress(batch.t, batch.maxSteps)
+            end
             local bEncInDev = batch["encIn"]
             local bDecInDev = batch["decIn"]
             local bDecOutDev = batch["decOut"]
@@ -166,7 +174,9 @@ for epoch=opt.start_epoch,opt.stop_epoch do
         print("Running on test split.")
         for batch in data:batchIter(encInTst, decInTst, decOutTst,
                                     opt.batch_size) do
-            xlua.progress(batch.t, batch.maxSteps)
+            if opt.progress then
+                xlua.progress(batch.t, batch.maxSteps)
+            end
             local bEncInTst = batch["encIn"]
             local bDecInTst = batch["decIn"]
             local bDecOutTst = batch["decOut"]
@@ -205,8 +215,6 @@ for epoch=opt.start_epoch,opt.stop_epoch do
         print(epoch, "         Test accuracy = " .. testAcc)
         resultString = resultString .. "\t" .. testPerpl .. "\t" .. testAcc
     end
-
-
 
     results:write(resultString .. "\n")
 
