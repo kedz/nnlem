@@ -20,7 +20,7 @@ require 'lemma-data'
 local eval = require('eval')
 require 'stacked-lstm'
 require 'attention-lstm'
---require 'attention-bi-lstm'
+require 'attention-bi-lstm'
 
 local useGPU = false
 if opt.gpu > 0 then useGPU = true end
