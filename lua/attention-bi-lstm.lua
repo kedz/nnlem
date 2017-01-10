@@ -12,6 +12,7 @@ function ABLSTMModel:__init(vocabSize, dimSize, layerSize, learningRate)
     self.vocabSize = vocabSize
     self.dimSize = dimSize
     self.layerSize = layerSize
+    self.learningRate = learningRate
     self.optimState = {learningRate=learningRate}
     self:buildNet()
     self:__allocateMemory()
@@ -504,7 +505,7 @@ function ABLSTMModel:float()
     self.logSoftMax:float()
     self.criterion:float()
     self.tableOutput:float()
-    self.__allocateMemory()
+    self:__allocateMemory()
 end
 
 function ABLSTMModel:cuda()
@@ -513,7 +514,16 @@ function ABLSTMModel:cuda()
     self.logSoftMax:cuda()
     self.criterion:cuda()
     self.tableOutput:cuda()
-    self.__allocateMemory()
+    self:__allocateMemory()
+end
+
+function ABLSTMModel:cloneAsFloat() 
+    local floatModel = nn.ABLSTMModel(
+        self.vocabSize, self.dimSize, self.layerSize, self.learningRate)
+    floatModel.encoder = self.encoder:clone():float()
+    floatModel.decoder = self.decoder:clone():float()
+    floatModel:__allocateMemory()
+    return floatModel
 end
 
 function ABLSTMModel:reset()

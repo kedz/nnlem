@@ -115,7 +115,6 @@ if encInTst then
 end
 results:write(header .. "\n")
 
-
 print("Evaluating epochs " .. opt.start_epoch .. " ... " .. opt.stop_epoch)
 
 for epoch=opt.start_epoch,opt.stop_epoch do
@@ -123,6 +122,7 @@ for epoch=opt.start_epoch,opt.stop_epoch do
 
     local modelFile = opt.model .. "/model-" .. epoch .. ".bin"
     local model = torch.load(modelFile)
+    if useGPU then model:cuda() end
 
     local trainLoss = 0
     local trainCorrect = 0

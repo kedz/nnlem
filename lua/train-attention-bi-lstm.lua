@@ -100,6 +100,6 @@ for epoch=1,opt.epochs do
     if saveModels then
         local modelFile = opt.save .. "/model-" .. epoch .. ".bin"
         print("Writing model to " .. modelFile .. " ...")
-        torch.save(modelFile, model)
+        torch.save(modelFile, model:cloneAsFloat())
     end
 end
